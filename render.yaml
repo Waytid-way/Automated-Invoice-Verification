@@ -1,0 +1,18 @@
+# Render Blueprint for Invoice Webhook Server
+# Deploy with: render blueprints create --filename render.yaml
+
+services:
+  - type: web
+    name: invoice-webhook
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python webhook_server.py
+    envVars:
+      - key: TYHOON_API_KEY
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_GROUP_ID
+        value: C68080abc2a2d63f1ae8a797c961cfd51
+      - key: PYTHON_VERSION
+        value: "3.11"
