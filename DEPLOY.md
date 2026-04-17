@@ -39,15 +39,55 @@ git push -u origin main
 - Sleeps after 15 min inactivity (cold start ~30s)
 - For production: upgrade to paid tier or use Railway
 
-## Alternative: Railway
+## Railway Deployment
 
 ```bash
+# 1. Install Railway CLI
 npm install -g @railway/cli
+
+# 2. Login
 railway login
+
+# 3. Initialize (in project dir)
+cd /home/com-way/hermes-agent/Automated-Invoice-Verification
 railway init
-railway add
-railway env set TYHOON_API_KEY=sk-xxx
-railway env set LINE_CHANNEL_ACCESS_TOKEN=xxx
+# Select: Yes to create new project
+# Select: Python app
+
+# 4. Set environment variables
+railway env set TYHOON_API_KEY=sk-pthdPtLlSjoB9nncrDh8kAjAVowQWU3bYLY09UjBgg7dXeAd
+railway env set LINE_CHANNEL_ACCESS_TOKEN=YOUR_LINE_TOKEN
 railway env set LINE_GROUP_ID=C68080abc2a2d63f1ae8a797c961cfd51
+
+# 5. Deploy
 railway up
+
+# 6. Get URL
+railway domain
 ```
+
+### Or via UI:
+1. Go to [railway.app](https://railway.app) → Login with GitHub
+2. Click **"New Project"** → **"Deploy from GitHub repo"**
+3. Select `Automated-Invoice-Verification`
+4. Add env vars in Variables tab
+5. Deploy
+
+## Configure LINE Webhook
+
+After Railway deploy, get your domain:
+```bash
+railway domain
+```
+
+Set webhook URL in LINE Developers Console:
+```
+https://YOUR-RAILWAY-DOMAIN/webhook
+```
+
+## Notes
+
+- Free tier: $5/month credit (enough for dev/staging)
+- Sleeps after 1 hour inactivity
+- Prorated billing
+

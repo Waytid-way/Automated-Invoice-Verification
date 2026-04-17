@@ -4,3 +4,5 @@ requests
 typhoon-ocr
 openai
 python-dotenv
+flask
+gunicorn
