@@ -39,7 +39,7 @@ else:
     OCR_MODEL = "typhoon-ocr"
     LLM_BASE_URL = "https://api.opentyphoon.ai/v1"
     LLM_MODEL = "typhoon-v2.5-30b-a3b-instruct"
-    API_KEY = os.getenv("typhoon_api_key")
+    API_KEY = os.getenv("TYHOON_API_KEY")
 
 client = OpenAI(api_key=API_KEY, base_url=LLM_BASE_URL)
 
