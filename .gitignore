@@ -2,3 +2,34 @@
 *.jpg
 *.png
 .streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+venv/
+.venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project data (keep .env only)
+.env.backup
+*.log
+
+# Webhook server
+webhook_server.py
+
+# Test outputs
+pending_review.json
+paid_invoices.json
+po_vendor_data.json
+discovered_group_ids.json

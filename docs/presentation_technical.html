@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Thinking — Automated Invoice Verification</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+        :root {
+            --bg-dark: #0a0e17;
+            --bg-card: #111827;
+            --bg-card-hover: #1a2235;
+            --accent-cyan: #00d4ff;
+            --accent-purple: #a855f7;
+            --accent-green: #22c55e;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --accent-yellow: #eab308;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #1e293b;
+            --gradient-cyan: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            --gradient-purple: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            --gradient-green: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Kanit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ========== NAVIGATION ========== */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: rgba(10, 14, 23, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 1000;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .nav-brand .badge {
+            background: var(--gradient-cyan);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background: rgba(0, 212, 255, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        /* ========== SLIDES ========== */
+        .slide {
+            min-height: 100vh;
+            padding: 100px 80px 60px;
+            display: none;
+        }
+
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--accent-cyan);
+            margin-bottom: 12px;
+            letter-spacing: 2px;
+        }
+
+        .slide-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+
+        .slide-title.gradient-text {
+            background: var(--gradient-cyan);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide-subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+            font-weight: 300;
+        }
+
+        /* ========== CARDS ========== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--accent-cyan);
+            background: var(--bg-card-hover);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h3 .icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .card p, .card li {
+            font-size: 15px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        .card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .card ul li {
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .card ul li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent-cyan);
+        }
+
+        /* ========== BADGES ========== */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-cyan { background: rgba(0, 212, 255, 0.15); color: var(--accent-cyan); }
+        .badge-purple { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .badge-green { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+        .badge-orange { background: rgba(249, 115, 22, 0.15); color: var(--accent-orange); }
+        .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+
+        /* ========== CODE BLOCKS ========== */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            line-height: 1.6;
+        }
+
+        .code-block .keyword { color: #ff79c6; }
+        .code-block .string { color: #f1fa8c; }
+        .code-block .comment { color: #6272a4; }
+        .code-block .function { color: #50fa7b; }
+        .code-block .number { color: #bd93f9; }
+        .code-block .property { color: #8be9fd; }
+
+        /* ========== FLOW DIAGRAMS ========== */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 24px 0;
+        }
+
+        .flow-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 20px;
+            text-align: center;
+            min-width: 140px;
+        }
+
+        .flow-item .step {
+            font-size: 11px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .flow-item .name {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .flow-item.highlight {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .flow-item.cyan { border-color: var(--accent-cyan); }
+        .flow-item.purple { border-color: var(--accent-purple); }
+        .flow-item.green { border-color: var(--accent-green); }
+        .flow-item.orange { border-color: var(--accent-orange); }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: 20px;
+        }
+
+        /* ========== TABLES ========== */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.08);
+            padding: 14px 20px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .check { color: var(--accent-green); }
+        .cross { color: var(--accent-red); }
+        .warn { color: var(--accent-orange); }
+
+        /* ========== COMPARISON ========== */
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            margin: 24px 0;
+        }
+
+        .comparison-col h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+
+        .comparison-col.bad h4 {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+            border-left: 3px solid var(--accent-red);
+        }
+
+        .comparison-col.good h4 {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--accent-green);
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .comparison-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .comparison-item .icon {
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* ========== HERO SLIDE ========== */
+        .hero {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 160px);
+            text-align: center;
+        }
+
+        .hero-content {
+            max-width: 900px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(168, 85, 247, 0.15);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: var(--accent-purple);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .hero h1 {
+            font-size: 72px;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 .highlight {
+            background: var(--gradient-cyan);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 22px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 40px;
+            font-weight: 300;
+        }
+
+        .hero-meta {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .hero-meta span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ========== SECTION DIVIDER ========== */
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            margin: 48px 0;
+        }
+
+        .section-divider .line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .section-divider .label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 2px;
+        }
+
+        /* ========== HIGHLIGHT BOX ========== */
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 16px;
+            padding: 32px;
+            margin: 24px 0;
+        }
+
+        .highlight-box h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--accent-cyan);
+        }
+
+        /* ========== ARCHITECTURE DIAGRAM ========== */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            margin: 24px 0;
+            overflow-x: auto;
+        }
+
+        .arch-layer {
+            margin-bottom: 24px;
+        }
+
+        .arch-layer:last-child {
+            margin-bottom: 0;
+        }
+
+        .arch-layer-label {
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-cyan);
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .arch-components {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .arch-component {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .arch-connector {
+            color: var(--text-muted);
+            font-size: 18px;
+            margin: 8px 0;
+            padding-left: 12px;
+        }
+
+        /* ========== NAVIGATION BUTTONS ========== */
+        .nav-buttons {
+            position: fixed;
+            bottom: 40px;
+            right: 40px;
+            display: flex;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        /* ========== SLIDE INDICATOR ========== */
+        .slide-indicator {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .dot.active {
+            background: var(--accent-cyan);
+            transform: scale(1.3);
+        }
+
+        .dot:hover {
+            background: var(--text-muted);
+        }
+
+        /* ========== PROGRESS BAR ========== */
+        .progress-bar {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            height: 3px;
+            background: var(--gradient-cyan);
+            transition: width 0.3s ease;
+            z-index: 999;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            .slide { padding: 80px 24px 80px; }
+            .hero h1 { font-size: 40px; }
+            .slide-title { font-size: 32px; }
+            .comparison { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-brand">
+            <span>🤖</span>
+            <span>Automated Invoice Verification</span>
+            <span class="badge">TECHNICAL</span>
+        </div>
+        <div class="nav-links">
+            <a href="#" onclick="goToSlide(0)">Overview</a>
+            <a href="#" onclick="goToSlide(1)">Multi-Agent</a>
+            <a href="#" onclick="goToSlide(2)">HITL</a>
+            <a href="#" onclick="goToSlide(3)">Rate Limit</a>
+            <a href="#" onclick="goToSlide(4)">Dual Mode</a>
+            <a href="#" onclick="goToSlide(5)">Summary</a>
+        </div>
+    </nav>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- SLIDE 0: Hero / Overview -->
+    <section class="slide active" id="slide-0">
+        <div class="hero">
+            <div class="hero-content">
+                <div class="hero-badge">🔬 Technical Deep Dive</div>
+                <h1>Technical <span class="highlight">Thinking</span></h1>
+                <p>เจาะลึกการออกแบบ Swarm Architecture — ทำไมต้องแบ่ง Agent แต่ละ Agent ทำอะไร HITL ทำงานอย่างไร และเทคนิค Rate Limiting ที่ทำให้ระบบเสถียร</p>
+                <div class="hero-meta">
+                    <span>📅 18 เมษายน 2569</span>
+                    <span>🎓 IE322 — Mango Technology</span>
+                    <span>⏱ 15 นาที</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 1: Why Multi-Agent? -->
+    <section class="slide" id="slide-1">
+        <div class="slide-number">01 / WHY MULTI-AGENT</div>
+        <h2 class="slide-title gradient-text">ทำไมต้องแบ่ง Agent?</h2>
+        <p class="slide-subtitle">แทนที่จะใช้ Single Agent ทำทุกอย่าง — ทำไมต้องแยกให้แต่ละ Agent มีหน้าที่เฉพาะ</p>
+
+        <div class="comparison">
+            <div class="comparison-col bad">
+                <h4>❌ Single Agent Problem</h4>
+                <div class="comparison-item">
+                    <span class="icon warn">⚠️</span>
+                    <span>LLM เดียวทำทุกอย่าง → โอเวอร์โหลด</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">⚠️</span>
+                    <span>ไม่มี Error Recovery ที่ชัดเจน</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">⚠️</span>
+                    <span>Debug ยาก — ไม่รู้ว่าขั้นตอนไหนผิด</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">⚠️</span>
+                    <span>OCR Model กับ LLM Model ใช้คนละตัว แต่รวมกัน?</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">⚠️</span>
+                    <span>ยากต่อการ Scale — อยากเปลี่ยน OCR แต่ต้องแก้ทั้งระบบ</span>
+                </div>
+            </div>
+            <div class="comparison-col good">
+                <h4>✅ Swarm Multi-Agent Solution</h4>
+                <div class="comparison-item">
+                    <span class="icon check">✓</span>
+                    <span>แต่ละ Agent มีหน้าที่เฉพาะ — โฟกัสได้ดี</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon check">✓</span>
+                    <span>Agent ส่งผลต่อให้กัน (Handoff) — Flow ชัดเจน</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon check">✓</span>
+                    <span>Error ที่ Agent ไหน → Debug ได้ง่าย</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon check">✓</span>
+                    <span>OCR กับ LLM Model แยกกันตามจริง</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon check">✓</span>
+                    <span>Scale ได้ — เปลี่ยน Agent ได้โดยไม่กระทบตัวอื่น</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">AGENT FLOW</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="flow">
+            <div class="flow-item cyan">
+                <div class="step">AGENT 1</div>
+                <div class="name">OCR Agent</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item purple">
+                <div class="step">AGENT 2</div>
+                <div class="name">LLM Extraction</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item orange">
+                <div class="step">AGENT 3</div>
+                <div class="name">Duplicate Detection</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item green">
+                <div class="step">AGENT 4</div>
+                <div class="name">PO Matching</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item highlight">
+                <div class="step">AGENT 5</div>
+                <div class="name">Error Handler</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 2: Agent Architecture Detail -->
+    <section class="slide" id="slide-2">
+        <div class="slide-number">02 / AGENT DETAILS</div>
+        <h2 class="slide-title gradient-text">แต่ละ Agent ทำอะไร?</h2>
+        <p class="slide-subtitle">รายละเอียดหน้าที่ของแต่ละ Agent ใน Swarm Architecture</p>
+
+        <div class="card-grid">
+            <div class="card" style="border-left: 3px solid var(--accent-cyan);">
+                <h3><span class="icon" style="background: rgba(0,212,255,0.15);">📄</span> OCR Agent</h3>
+                <ul>
+                    <li>รับ Input: ไฟล์ PDF / JPG / PNG</li>
+                    <li>ใช้ Typhoon OCR (3B Model)</li>
+                    <li>สกัด Raw Text ออกมา</li>
+                    <li>Retry: 3 ครั้ง</li>
+                    <li>Fallback: LOCAL Ollama</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-purple);">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">🧠</span> LLM Extraction Agent</h3>
+                <ul>
+                    <li>รับ Input: Raw Text จาก OCR</li>
+                    <li>ใช้ Typhoon LLM (30B Model)</li>
+                    <li>สกัดเป็น Structured JSON</li>
+                    <li>มี Few-shot Prompt กำหนด Schema</li>
+                    <li>Thai VAT Auto-calculation</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-orange);">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">🔍</span> Duplicate Detection</h3>
+                <ul>
+                    <li>Layer 1: Exact Match (Invoice Number)</li>
+                    <li>Layer 2: Fingerprint (Vendor+Amount+Date)</li>
+                    <li>Layer 3: Fuzzy Match (Similarity ≥ 0.85)</li>
+                    <li>Return: DuplicateResult</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-green);">
+                <h3><span class="icon" style="background: rgba(34,197,94,0.15);">⚖️</span> PO Matching Agent</h3>
+                <ul>
+                    <li>2-Way Matching: PO Number + Amount</li>
+                    <li>Status: MATCHED / AMOUNT_MISMATCH / NOT_FOUND</li>
+                    <li>คำนวณ Diff ระหว่าง Invoice กับ PO</li>
+                    <li>Return: POMatchResult</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-red);">
+                <h3><span class="icon" style="background: rgba(239,68,68,0.15);">🛡️</span> Error Handler Agent</h3>
+                <ul>
+                    <li>Severity: LOW → MEDIUM → HIGH → CRITICAL</li>
+                    <li>Retry Logic ทุก Agent</li>
+                    <li>Rate Limit Cooldown (10 วินาที)</li>
+                    <li>Fallback: Cloud → LOCAL</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>💡 Key Insight: Sequential Handoff</h3>
+            <p>แต่ละ Agent ทำงานเสร็จแล้วส่งผลลัพธ์ให้ Agent ถัดไป ข้อดีคือ Flow ชัดเจน Debug ง่าย แต่ถ้า Batch ใหญ่ต้องรอขั้นตอนเดียวเสร็จก่อน</p>
+        </div>
+    </section>
+
+    <!-- SLIDE 3: HITL Design -->
+    <section class="slide" id="slide-3">
+        <div class="slide-number">03 / HUMAN-IN-THE-LOOP</div>
+        <h2 class="slide-title gradient-text">ทำไมต้องมี HITL?</h2>
+        <p class="slide-subtitle">แม้ AI จะทำงานได้ดี แต่ Human Checkpoint ยังจำเป็น — ดูเหตุผล</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(239,68,68,0.15);">🤖</span> AI อาจผิดพลาด</h3>
+                <p>LLM อาจ <strong style="color: var(--accent-red);">"หลอน" (Hallucination)</strong> — สกัด 1,000 บาท ว่า 10,000 บาท ซึ่งกระทบทางการเงินโดยตรง ตัวอย่าง: อ่านเลข 1 เป็นเลข 7</p>
+                <div style="margin-top: 12px;">
+                    <span class="badge badge-red">HIGH RISK</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">⚖️</span> ความรับผิดชอบทางการเงิน</h3>
+                <p>การอนุมัติจ่ายเงินต้องมี <strong style="color: var(--accent-orange);">ชื่อจริง + ลายเซ็น</strong> AI ไม่สามารถรับผิดทางกฎหมายได้ ต้องมีคนรับผิดชอบจริง</p>
+                <div style="margin-top: 12px;">
+                    <span class="badge badge-orange">COMPLIANCE</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">📋</span> Compliance / Audit</h3>
+                <p>มาตรฐานทางการเงินกำหนดให้ทุกการอนุมัติต้องมี <strong style="color: var(--accent-purple);">หลักฐานประจำตัวผู้อนุมัติ + วันเวลา</strong> บันทึกใน Audit Log ต้องมีความถูกต้องสมบูรณ์</p>
+                <div style="margin-top: 12px;">
+                    <span class="badge badge-purple">REQUIRED</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(34,197,94,0.15);">⚠️</span> False Positive / Negative</h3>
+                <p>Duplicate Detection อาจ <strong style="color: var(--accent-green);">False Positive</strong> (บอกซ้ำทั้งที่ไม่ซ้ำ) หรือ <strong style="color: var(--accent-green);">False Negative</strong> (บอกไม่ซ้ำทั้งที่ซ้ำ) — ต้องมีคนตัดสินใจสุดท้าย</p>
+                <div style="margin-top: 12px;">
+                    <span class="badge badge-green">ESCALATION</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">4 CHECKPOINTS</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="flow">
+            <div class="flow-item cyan">
+                <div class="step">HITL-1</div>
+                <div class="name">OCR Result<br>Review</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item purple highlight">
+                <div class="step">HITL-2</div>
+                <div class="name">LLM Extraction<br>Review (หลัก)</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item orange">
+                <div class="step">HITL-3</div>
+                <div class="name">Duplicate<br>Alert</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item green">
+                <div class="step">HITL-4</div>
+                <div class="name">Mismatch<br>Alert</div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <h3>⚠️ สำคัญ: ระบบจะไม่ส่งข้อมูลเข้า ERP จนกว่า Staff จะกด Approve ✓</h3>
+            <p>การอนุมัติ = การยืนยันว่าข้อมูลถูกต้อง และ Staff รับผิดชอบต่อการจ่ายเงินนั้น</p>
+        </div>
+    </section>
+
+    <!-- SLIDE 4: Rate Limiting -->
+    <section class="slide" id="slide-4">
+        <div class="slide-number">04 / RATE LIMITING</div>
+        <h2 class="slide-title gradient-text">กลยุทธ์ Rate Limiting</h2>
+        <p class="slide-subtitle">ทำอย่างไรไม่ให้โดน Typhoon API Ban — เมื่อเจอ 429 ต้องทำยังไง</p>
+
+        <div class="card-grid">
+            <div class="card" style="border-left: 3px solid var(--accent-cyan);">
+                <h3><span class="icon" style="background: rgba(0,212,255,0.15);">📊</span> Typhoon Cloud Limits</h3>
+                <ul>
+                    <li><strong>OCR:</strong> 20 req/min</li>
+                    <li><strong>LLM:</strong> 200 req/min</li>
+                </ul>
+                <p style="margin-top: 12px; font-size: 13px; color: var(--text-muted);">OCR คือ Bottleneck — ต้องระวังกว่า LLM</p>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-green);">
+                <h3><span class="icon" style="background: rgba(34,197,94,0.15);">✅</span> Our Solution: 3.1s Delay</h3>
+                <div class="code-block">
+<span class="keyword">for</span> invoice <span class="keyword">in</span> batch:
+    ocr_result = typhoon_ocr(image)
+    <span class="function">sleep</span>(<span class="number">3.1</span>)  <span class="comment"># รอก่อนใบต่อไป</span>
+    <span class="comment"># 3.1 × 20 = 62 วินาที ต่อ 20 calls</span>
+    <span class="comment"># ปลอดภัยไม่โดน Ban ✅</span>
+                </div>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-orange);">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">🔄</span> เมื่อเจอ 429 Error</h3>
+                <ul>
+                    <li><strong>Step 1:</strong> Cooldown 10 วินาที</li>
+                    <li><strong>Step 2:</strong> Retry ครั้งที่ 1</li>
+                    <li><strong>Step 3:</strong> ถ้ายัง 429 อีก → ข้ามใบนั้น</li>
+                    <li><strong>Step 4:</strong> Log Error + แจ้ง Staff</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-purple);">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">🔀</span> Fallback Strategy</h3>
+                <ul>
+                    <li>Cloud API Fail → Fallback ไป LOCAL Ollama</li>
+                    <li>LOCAL ฟรี + ไม่มี Rate Limit</li>
+                    <li>Trade-off: เครื่องต้องมี GPU แรงพอ</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">ERROR HANDLER FLOW</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="flow">
+            <div class="flow-item">
+                <div class="step">ERROR</div>
+                <div class="name">API Call<br>Fail</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item orange">
+                <div class="step">RETRY</div>
+                <div class="name">Attempt<br>1/3</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item red">
+                <div class="step">COOLDOWN</div>
+                <div class="name">Wait<br>10s</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item purple">
+                <div class="step">FALLBACK</div>
+                <div class="name">LOCAL<br>Ollama</div>
+            </div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-item green">
+                <div class="step">ESCALATE</div>
+                <div class="name">Mark<br>Failed</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 5: Dual Mode Architecture -->
+    <section class="slide" id="slide-5">
+        <div class="slide-number">05 / DUAL MODE</div>
+        <h2 class="slide-title gradient-text">LOCAL vs CLOUD</h2>
+        <p class="slide-subtitle">ระบบรองรับ 2 โหมด — User เลือกได้ตามสถานการณ์</p>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Criteria</th>
+                        <th><span class="badge badge-cyan">LOCAL (Ollama)</span></th>
+                        <th><span class="badge badge-purple">API (Typhoon Cloud)</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>💰 ค่าใช้จ่าย</td>
+                        <td class="check">✅ ฟรี (ต้องมี GPU)</td>
+                        <td>⚠️ มีค่าใช้จ่ายตามการใช้งาน</td>
+                    </tr>
+                    <tr>
+                        <td>🌐 Internet</td>
+                        <td class="check">✅ ไม่ต้องใช้เน็ต</td>
+                        <td class="cross">❌ ต้องมีเน็ตตลอด</td>
+                    </tr>
+                    <tr>
+                        <td>🔒 ความเป็นส่วนตัว</td>
+                        <td class="check">✅ ข้อมูลไม่ออกนอกเครื่อง</td>
+                        <td>⚠️ ข้อมูลส่งไป Cloud</td>
+                    </tr>
+                    <tr>
+                        <td>⚡ Performance</td>
+                        <td class="check">✅ Latency ต่ำ (ไม่มีเน็ต)</td>
+                        <td>⚠️ Latency ขึ้นกับเน็ต</td>
+                    </tr>
+                    <tr>
+                        <td>💻 Hardware</td>
+                        <td class="cross">❌ ต้องมี GPU แรงพอ</td>
+                        <td class="check">✅ ใช้งานได้ทุกเครื่อง</td>
+                    </tr>
+                    <tr>
+                        <td>🔧 Setup</td>
+                        <td class="cross">❌ ต้องติดตั้ง Ollama</td>
+                        <td class="check">✅ พร้อมใช้ทันที</td>
+                    </tr>
+                    <tr>
+                        <td>📦 Model Size</td>
+                        <td>⚠️ ขึ้นกับ VRAM</td>
+                        <td class="check">✅ เข้าถึง 30B Model เต็ม</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="highlight-box">
+            <h3>⚙️ วิธีเลือกโหมด</h3>
+            <p>ใน Streamlit Sidebar → เลือก <strong style="color: var(--accent-cyan);">"LOCAL (Ollama)"</strong> ถ้ามี GPU แรงพอและต้องการความเป็นส่วนตัว หรือเลือก <strong style="color: var(--accent-purple);">"API (Typhoon Cloud)"</strong> ถ้าต้องการความสะดวกและเข้าถึงโมเดลใหญ่กว่า</p>
+        </div>
+    </section>
+
+    <!-- SLIDE 6: Summary -->
+    <section class="slide" id="slide-6">
+        <div class="slide-number">06 / SUMMARY</div>
+        <h2 class="slide-title gradient-text">สรุป Technical Decisions</h2>
+        <p class="slide-subtitle">5 จุดสำคัญที่ต้องจำ — พร้อมเหตุผล</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(0,212,255,0.15);">1</span> Swarm Multi-Agent</h3>
+                <p>แต่ละ Agent มีหน้าที่เฉพาะ → Debug ง่าย, Scale ง่าย, เปลี่ยน Model ได้โดยไม่กระทบตัวอื่น</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">2</span> HITL Checkpoints</h3>
+                <p>Staff ตรวจทุกใบก่อน Approve → ป้องกัน AI Error ที่กระทบทางการเงิน + มี Audit Trail ตามกฎหมาย</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">3</span> Rate Limiting</h3>
+                <p>3.1s delay สำหรับ OCR + Cooldown 10s เมื่อเจอ 429 → ไม่โดน Ban แม้ Batch ใหญ่</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(34,197,94,0.15);">4</span> Dual-Mode</h3>
+                <p>LOCAL/CLOUD เลือกได้ตามสถานการณ์ → LOCAL ฟรี+เป็นส่วนตัว, CLOUD สะดวก+เข้าถึงโมเดลใหญ่</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(239,68,68,0.15);">5</span> Fallback Chain</h3>
+                <p>Cloud → LOCAL Ollama → Mark Failed → Log Error → Alert Staff → ไม่มีใบหายโดยไม่รู้</p>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">KEY TAKEAWAYS</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="card" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(168,85,247,0.05) 100%); border-color: rgba(0,212,255,0.3);">
+            <h3 style="color: var(--accent-cyan);">💡 บทเรียนสำคัญ</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px;">
+                <div>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7;">
+                        <strong style="color: var(--text-primary);">1. AI ช่วยลดเวลา</strong><br>
+                        แต่ไม่ใช่ทดแทนมนุษย์ — HITL จำเป็นเสมอสำหรับงานทางการเงิน
+                    </p>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px;">
+                        <strong style="color: var(--text-primary);">2. Swarm ไม่ใช่ทุกอย่างต้อง Parallel</strong><br>
+                        Sequential Handoff ก็เพียงพอสำหรับงานที่ต้องรอขั้นตอนก่อน
+                    </p>
+                </div>
+                <div>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7;">
+                        <strong style="color: var(--text-primary);">3. Rate Limit = Survival</strong><br>
+                        ระบบที่ดีต้องรู้ว่าขีดจำกัดของ API อยู่ตรงไหน และมี Backup Plan
+                    </p>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px;">
+                        <strong style="color: var(--text-primary);">4. Thai Language Support</strong><br>
+                        Typhoon OCR/LLM รองรับภาษาไทยดีมาก — เหมาะสำหรับ Invoice ไทย
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 60px;">
+            <p style="color: var(--text-muted); font-size: 14px;">
+                🔗 GitHub: <strong style="color: var(--accent-cyan);">github.com/Sutivat/Automated-Invoice-Verification</strong>
+            </p>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+                🎓 IE322 — Mango Technology Internship — 18 เมษายน 2569
+            </p>
+        </div>
+    </section>
+
+    <!-- Navigation Buttons -->
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="prevSlide()">←</button>
+        <button class="nav-btn" onclick="nextSlide()">→</button>
+    </div>
+
+    <!-- Slide Indicator -->
+    <!-- SLIDE 7: Scaling -->
+    <section class="slide" id="slide-6">
+        <div class="slide-number">07 / SCALING</div>
+        <h2 class="slide-title gradient-text">ถ้าเอกสารเพิ่ม 10 เท่า?</h2>
+        <p class="slide-subtitle">วิเคราะห์ Bottleneck + วางแผน Scale ระบบ</p>
+
+        <div class="comparison" style="margin-bottom: 32px;">
+            <div class="comparison-col bad">
+                <h4>📊 Current State (20 ใบ/วัน)</h4>
+                <div class="comparison-item">
+                    <span class="icon">⏱</span>
+                    <span>Processing: ~60-100 นาที (OCR 3.1s × 20)</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon">👤</span>
+                    <span>Staff Review: ~40 นาที (2 นาที/ใบ × 20)</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon">📁</span>
+                    <span>Storage: JSON file เพียงพอ</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon">🌐</span>
+                    <span>API: Rate limit ไม่เป็นปัญหา</span>
+                </div>
+            </div>
+            <div class="comparison-col bad">
+                <h4>📈 10x Scale (200 ใบ/วัน)</h4>
+                <div class="comparison-item">
+                    <span class="icon warn">⏱</span>
+                    <span>Processing: ~600-1,000 นาที (10+ ชม. เลย!)</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">👤</span>
+                    <span>Staff Review: ~400 นาที (6-7 ชม. ต่อวัน)</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">📁</span>
+                    <span>Storage: JSON เริ่มช้า, ไม่รองรับ Concurrent</span>
+                </div>
+                <div class="comparison-item">
+                    <span class="icon warn">🌐</span>
+                    <span>API: OCR rate limit ตึงมาก (200/20 = 10 เท่า)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">BOTTLENECK ANALYSIS</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card" style="border-left: 3px solid var(--accent-red);">
+                <h3><span class="icon" style="background: rgba(239,68,68,0.15);">🔴</span> Bottleneck #1: OCR Rate Limit</h3>
+                <p>OCR limit: <strong>20 req/min</strong> — ถ้า 200 ใบต้องรอ ~600 นาที ขึ้นอยู่กับ rate limit</p>
+                <div class="code-block" style="margin-top: 12px; background: rgba(239,68,68,0.1);">
+<span class="comment"># Current: Sequential</span>
+<span class="keyword">for</span> invoice <span class="keyword">in</span> batch:
+    result = ocr(invoice)  <span class="comment"># 3.1s delay</span>
+    <span class="comment"># 200 ใบ = 620 วินาที = 10+ นาที แค่ OCR</span>
+
+<span class="comment"># 10x: Parallel OCR พร้อมกัน</span>
+<span class="keyword">with</span> ThreadPoolExecutor(max_workers=<span class="number">5</span>) <span class="keyword">as</span> ex:
+    results = ex.map(ocr, batch)  <span class="comment"># ลดเวลาลง 5 เท่า</span>
+                </div>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-orange);">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">🟠</span> Bottleneck #2: JSON File Storage</h3>
+                <p>JSON file ไม่รองรับ Concurrent writes — ถ้าหลาย process เขียนพร้อมกันจะ <strong style="color: var(--accent-red);">Data Race</strong></p>
+                <ul style="margin-top: 12px;">
+                    <li>ต้องเปลี่ยน → <strong>PostgreSQL</strong> หรือ <strong>SQLite</strong></li>
+                    <li>รองรับ ACID + Concurrent Access</li>
+                    <li>Index บน Invoice Number, PO Number</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-purple);">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">🟣</span> Bottleneck #3: Staff Review</h3>
+                <p>200 ใบ × 2 นาที = ~400 นาที (6-7 ชม.) — พนักงาน 1 คนรับไม่ไหว</p>
+                <ul style="margin-top: 12px;">
+                    <li>เพิ่ม Staff Reviewer หลายคน</li>
+                    <li>Triage System: High-risk ให้ Senior ดูก่อน</li>
+                    <li>Auto-prioritize: Mismatch → Senior, Matched → Junior</li>
+                </ul>
+            </div>
+
+            <div class="card" style="border-left: 3px solid var(--accent-cyan);">
+                <h3><span class="icon" style="background: rgba(0,212,255,0.15);">🔵</span> Bottleneck #4: LLM Latency</h3>
+                <p>LLM 200 req/min — แต่ละ request ~2-5 วินาที → 200 ใบ = ~400-1,000 วินาที</p>
+                <ul style="margin-top: 12px;">
+                    <li>Parallel LLM calls ด้วย AsyncIO</li>
+                    <li>Caching: ถ้า Invoice คล้ายกัน → ใช้ cached result</li>
+                    <li>Batching: ส่งหลายใบใน prompt เดียว (few-shot)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">SOLUTION ROADMAP</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Action</th>
+                        <th>Impact</th>
+                        <th>Effort</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-cyan">Quick Win</span></td>
+                        <td>Parallel Batch Processing (ThreadPoolExecutor)</td>
+                        <td class="check">↓ 50-70% เวลา OCR</td>
+                        <td>ต่ำ</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">Medium</span></td>
+                        <td>PostgreSQL + Redis Cache</td>
+                        <td class="check">รองรับ Concurrent + Fast lookup</td>
+                        <td>ปานกลาง</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-purple">Major</span></td>
+                        <td>AsyncIO LLM Calls + Request Batching</td>
+                        <td class="check">↓ 40% LLM latency</td>
+                        <td>สูง</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-orange">Future</span></td>
+                        <td>Message Queue (RabbitMQ / Kafka)</td>
+                        <td class="check">รองรับ 1000+ ใบ/วัน</td>
+                        <td>สูงมาก</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="highlight-box">
+            <h3>📌 สรุป: สิ่งที่ต้องทำเมื่อ Scale 10x</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 16px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🔀</div>
+                    <strong>Parallelize OCR</strong>
+                    <p style="font-size: 13px; color: var(--text-secondary);">ThreadPoolExecutor + Semaphore คุม rate limit</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🗄️</div>
+                    <strong>เปลี่ยน Database</strong>
+                    <p style="font-size: 13px; color: var(--text-secondary);">JSON → PostgreSQL รองรับ Concurrent</p>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">👥</div>
+                    <strong>เพิ่ม Reviewer</strong>
+                    <p style="font-size: 13px; color: var(--text-secondary);">Triage + Priority Queue สำหรับ Staff</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SLIDE 8: Conclusion -->
+    <section class="slide" id="slide-7">
+        <div class="slide-number">08 / SUMMARY</div>
+        <h2 class="slide-title gradient-text">สรุป Technical Decisions</h2>
+        <p class="slide-subtitle">5 จุดสำคัญที่ต้องจำ — พร้อมเหตุผล</p>
+
+        <div class="card-grid">
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(0,212,255,0.15);">1</span> Swarm Multi-Agent</h3>
+                <p>แต่ละ Agent มีหน้าที่เฉพาะ → Debug ง่าย, Scale ง่าย, เปลี่ยน Model ได้โดยไม่กระทบตัวอื่น</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(168,85,247,0.15);">2</span> HITL Checkpoints</h3>
+                <p>Staff ตรวจทุกใบก่อน Approve → ป้องกัน AI Error ที่กระทบทางการเงิน + มี Audit Trail ตามกฎหมาย</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(249,115,22,0.15);">3</span> Rate Limiting</h3>
+                <p>3.1s delay สำหรับ OCR + Cooldown 10s เมื่อเจอ 429 → ไม่โดน Ban แม้ Batch ใหญ่</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(34,197,94,0.15);">4</span> Dual-Mode</h3>
+                <p>LOCAL/CLOUD เลือกได้ตามสถานการณ์ → LOCAL ฟรี+เป็นส่วนตัว, CLOUD สะดวก+เข้าถึงโมเดลใหญ่</p>
+            </div>
+
+            <div class="card">
+                <h3><span class="icon" style="background: rgba(239,68,68,0.15);">5</span> Fallback Chain</h3>
+                <p>Cloud → LOCAL Ollama → Mark Failed → Log Error → Alert Staff → ไม่มีใบหายโดยไม่รู้</p>
+            </div>
+        </div>
+
+        <div class="section-divider">
+            <div class="line"></div>
+            <span class="label">KEY TAKEAWAYS</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="card" style="background: linear-gradient(135deg, rgba(0,212,255,0.05) 0%, rgba(168,85,247,0.05) 100%); border-color: rgba(0,212,255,0.3);">
+            <h3 style="color: var(--accent-cyan);">💡 บทเรียนสำคัญ</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 16px;">
+                <div>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7;">
+                        <strong style="color: var(--text-primary);">1. AI ช่วยลดเวลา</strong><br>
+                        แต่ไม่ใช่ทดแทนมนุษย์ — HITL จำเป็นเสมอสำหรับงานทางการเงิน
+                    </p>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px;">
+                        <strong style="color: var(--text-primary);">2. Swarm ไม่ใช่ทุกอย่างต้อง Parallel</strong><br>
+                        Sequential Handoff ก็เพียงพอสำหรับงานที่ต้องรอขั้นตอนก่อน
+                    </p>
+                </div>
+                <div>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7;">
+                        <strong style="color: var(--text-primary);">3. Rate Limit = Survival</strong><br>
+                        ระบบที่ดีต้องรู้ว่าขีดจำกัดของ API อยู่ตรงไหน และมี Backup Plan
+                    </p>
+                    <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.7; margin-top: 12px;">
+                        <strong style="color: var(--text-primary);">4. Thai Language Support</strong><br>
+                        Typhoon OCR/LLM รองรับภาษาไทยดีมาก — เหมาะสำหรับ Invoice ไทย
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 60px;">
+            <p style="color: var(--text-muted); font-size: 14px;">
+                🔗 GitHub: <strong style="color: var(--accent-cyan);">github.com/Sutivat/Automated-Invoice-Verification</strong>
+            </p>
+            <p style="color: var(--text-muted); font-size: 14px; margin-top: 8px;">
+                🎓 IE322 — Mango Technology Internship — 18 เมษายน 2569
+            </p>
+        </div>
+    </section>
+
+    <!-- Navigation Buttons -->
+    <div class="nav-buttons">
+        <button class="nav-btn" onclick="prevSlide()">←</button>
+        <button class="nav-btn" onclick="nextSlide()">→</button>
+    </div>
+
+    <!-- Slide Indicator -->
+    <div class="slide-indicator" id="slideIndicator"></div>
+
+    <script>
+        let currentSlide = 0;
+        const totalSlides = 8;
+
+        function initSlides() {
+            const indicator = document.getElementById('slideIndicator');
+            for (let i = 0; i < totalSlides; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'dot' + (i === 0 ? ' active' : '');
+                dot.onclick = () => goToSlide(i);
+                indicator.appendChild(dot);
+            }
+        }
+
+        function updateSlide() {
+            document.querySelectorAll('.slide').forEach((s, i) => {
+                s.classList.toggle('active', i === currentSlide);
+            });
+            document.querySelectorAll('.dot').forEach((d, i) => {
+                d.classList.toggle('active', i === currentSlide);
+            });
+            document.getElementById('progressBar').style.width = ((currentSlide + 1) / totalSlides * 100) + '%';
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                updateSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlide();
+            }
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlide();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        initSlides();
+        updateSlide();
+    </script>
+
+</body>
+</html>
