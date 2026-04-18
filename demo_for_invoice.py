@@ -20,7 +20,7 @@ API_RATE_LIMIT_DELAY = 3.1
 # ==========================================
 # 2. APP CONFIG & SESSION STATE
 # ==========================================
-st.set_page_config(page_title="Typhoon Invoice AI (Pro Edition)", layout="wide")
+st.set_page_config(page_title="Automated Invoice Verification Agent", layout="wide")
 
 if "invoice_results" not in st.session_state:
     st.session_state.invoice_results = []
@@ -155,8 +155,8 @@ def process_single_invoice(uploaded_file):
 # ==========================================
 # 5. UI LAYOUT
 # ==========================================
-st.title("📑 Smart Accounts Payable (AP) Verifier")
-st.caption("Automated 2-Way Matching & Duplicate Detection")
+st.title("📑 Automated Invoice Verification Agent")
+st.caption("Typhoon OCR + LLM + Human-in-the-Loop Verification")
 
 files = st.file_uploader("Upload Invoices", accept_multiple_files=True, type=['png', 'jpg', 'pdf'])
 
