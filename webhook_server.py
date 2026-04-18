@@ -9,7 +9,8 @@ import json
 import logging
 import os
 import tempfile
-from typing import Any, Dict, Optional
+import threading
+from typing import Any, Dict, Optional, Set
 
 import requests
 from dotenv import load_dotenv
@@ -42,6 +43,10 @@ CONTENT_TYPE_TO_EXT: Dict[str, str] = {
     "application/pdf": ".pdf",
     "image/heic": ".heic",
 }
+
+# Track processed message IDs to prevent duplicate processing on LINE redelivery
+_processed_message_ids: Set[str] = set()
+_processed_message_ids_lock = threading.Lock()
 
 
 def get_line_token() -> str:
@@ -371,8 +376,8 @@ def webhook() -> tuple:
     """
     Main webhook endpoint for LINE Messaging API.
 
-    Receives webhook events, processes them, and always returns 200
-    to prevent LINE from sending retry requests.
+    Returns 200 immediately, then processes events asynchronously.
+    This prevents LINE timeout + duplicate processing issues.
     """
     try:
         body = request.json
@@ -385,19 +390,55 @@ def webhook() -> tuple:
         logger.info("No events in webhook body")
         return "OK", 200
 
-    orchestrator = LineOrchestrator()
     events = body.get("events", [])
+    logger.info(f"Received {len(events)} event(s)")
 
-    logger.info(f"Processing {len(events)} event(s)")
-
+    # Filter to only image/file messages we haven't processed (dedup on LINE redelivery)
+    events_to_process = []
     for event in events:
-        try:
-            process_event(event, orchestrator)
-        except Exception as e:
-            logger.error(f"Error processing event: {e}")
+        event_type = event.get("type", "")
+        if event_type == "message":
+            message = event.get("message", {})
+            message_type = message.get("type", "")
+            if message_type in ("image", "file"):
+                msg_id = message.get("id", "")
+                if msg_id:
+                    with _processed_message_ids_lock:
+                        if msg_id in _processed_message_ids:
+                            logger.info(f"Skipping duplicate message ID: {msg_id}")
+                            continue
+                        _processed_message_ids.add(msg_id)
+            events_to_process.append(event)
+        elif event_type in ("join", "leave"):
+            events_to_process.append(event)
 
-    # Always return 200 to LINE to prevent retry storms
+    # Always return 200 immediately — don't wait for processing
+    # LINE will not retry if we acknowledge quickly
+    threading.Thread(
+        target=_process_events_async,
+        args=(events_to_process,),
+        daemon=True
+    ).start()
+
     return "OK", 200
+
+
+def _process_events_async(events: list) -> None:
+    """
+    Process events asynchronously after webhook acknowledgment.
+
+    This runs in a background thread so the webhook can return 200
+    to LINE immediately, preventing timeout and duplicate deliveries.
+    """
+    try:
+        orchestrator = LineOrchestrator()
+        for event in events:
+            try:
+                process_event(event, orchestrator)
+            except Exception as e:
+                logger.error(f"Error processing event: {e}")
+    except Exception as e:
+        logger.error(f"Async event processing error: {e}")
 
 
 @app.route("/", methods=["GET"])
